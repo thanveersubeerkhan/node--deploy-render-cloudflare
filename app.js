@@ -19,13 +19,24 @@ app.use('*', async (c, next) => {
   await next()
 })
 
-// Ensure table exists (simple check for demo purposes)
+
+// Ensure tables exist
 const initDb = async (sql) => {
   await sql`
     CREATE TABLE IF NOT EXISTS items (
       id TEXT PRIMARY KEY,
       name TEXT,
       value TEXT
+    )
+  `
+  // Create files table for Node.js/Render storage
+  await sql`
+    CREATE TABLE IF NOT EXISTS files (
+      id TEXT PRIMARY KEY,
+      name TEXT,
+      type TEXT,
+      data BYTEA,
+      created_at TIMESTAMP DEFAULT NOW()
     )
   `
 }
@@ -87,8 +98,7 @@ app.delete('/items/:id', async c => {
   return c.json({ ok: true })
 })
 
-/* ---------- FILE UPLOAD (Web Standard) ---------- */
-const files = new Map()
+/* ---------- FILE UPLOAD (Dual Strategy) ---------- */
 
 app.post('/upload', async c => {
   const form = await c.req.formData()
@@ -98,27 +108,68 @@ app.post('/upload', async c => {
     return c.json({ error: 'File missing' }, 400)
   }
 
-  const buffer = await file.arrayBuffer()
   const id = crypto.randomUUID()
+  const buffer = await file.arrayBuffer()
+  const bucket = c.env?.BUCKET // R2 Bucket binding
 
-  files.set(id, {
-    id,
-    name: file.name,
-    type: file.type,
-    buffer
-  })
+  if (bucket) {
+    // Strategy 1: Cloudflare R2
+    await bucket.put(id, buffer, {
+      httpMetadata: { contentType: file.type },
+      customMetadata: { filename: file.name }
+    })
+  } else {
+    // Strategy 2: PostgreSQL (Node.js/Render)
+    const sql = c.get('sql')
+    await initDb(sql) // Ensure table exists
+    
+    // Convert ArrayBuffer to Buffer for postgres.js bytea
+    const data = new Uint8Array(buffer)
+    
+    await sql`
+      INSERT INTO files (id, name, type, data)
+      VALUES (${id}, ${file.name}, ${file.type}, ${data})
+    `
+  }
 
   return c.json({ fileId: id }, 201)
 })
 
-app.get('/files/:id', c => {
-  const file = files.get(c.req.param('id'))
-  if (!file) return c.json({ error: 'Not found' }, 404)
+app.get('/files/:id', async c => {
+  const id = c.req.param('id')
+  const bucket = c.env?.BUCKET
 
-  return new Response(file.buffer, {
-    headers: {
-      'Content-Type': file.type,
-      'Content-Disposition': `inline; filename="${file.name}"`
+  if (bucket) {
+    // Strategy 1: Cloudflare R2
+    const object = await bucket.get(id)
+    if (!object) return c.json({ error: 'Not found' }, 404)
+
+    const headers = new Headers()
+    object.writeHttpMetadata(headers)
+    headers.set('etag', object.httpEtag)
+    
+    // Retrieve custom filename if stored, or default
+    const filename = object.customMetadata?.filename || 'file'
+    headers.set('Content-Disposition', `inline; filename="${filename}"`)
+
+    return new Response(object.body, { headers })
+  } else {
+    // Strategy 2: PostgreSQL (Node.js/Render)
+    const sql = c.get('sql')
+    const result = await sql`SELECT * FROM files WHERE id = ${id}`
+    
+    if (result.length === 0) {
+      return c.json({ error: 'Not found' }, 404)
     }
-  })
+
+    const file = result[0]
+    // file.data is a Buffer/Uint8Array from postgres.js
+    
+    return new Response(file.data, {
+      headers: {
+        'Content-Type': file.type,
+        'Content-Disposition': `inline; filename="${file.name}"`
+      }
+    })
+  }
 })

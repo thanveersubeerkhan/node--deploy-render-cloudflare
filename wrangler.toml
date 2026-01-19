@@ -4,4 +4,9 @@ compatibility_date = "2024-01-01"
 compatibility_flags = ["nodejs_compat"]
 
 [vars]
-# DATABASE_URL is set in .dev.vars
+# DATABASE_URL is set in .dev.vars or secrets
+
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "nodejs-bucket"
+preview_bucket_name = "nodejs-bucket"
