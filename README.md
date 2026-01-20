@@ -4,7 +4,7 @@ A high-performance, TypeScript-based API designed for seamless execution on both
 
 ## 🏗️ Architecture
 
-The project uses a shared core application logic (`src/app.ts`) with environment-specific entry points.
+The project uses a shared core application logic (`src/app.ts`) with environment-specific entry points. For a detailed breakdown of the files and logic, see the **[Codebase Explanation](docs/CODEBASE.md)**.
 
 ```mermaid
 graph TD
