@@ -4,12 +4,12 @@
     "description": "A Node.js and Cloudflare Workers project for workflow management and file storage.",
     "type": "module",
     "scripts": {
-        "start": "tsx src/index.ts",
+        "start": "node dist/index.js",
         "dev": "tsx watch src/index.ts",
         "dev:worker": "wrangler dev src/worker.ts",
         "build": "tsc",
         "clean": "rimraf dist",
-        "deploy": "wrangler deploy src/worker.ts",
+        "deploy": "wrangler deploy",
         "test": "node tests/verify.js"
     },
     "dependencies": {

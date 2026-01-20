@@ -23,4 +23,8 @@ app.route('/items', itemRoutes)
 app.route('/files', fileRoutes)
 
 // Default root route
-app.get('/', (c) => c.text('Node/Cloudflare TypeScript API is running!'))
+app.get('/', (c) => {
+  const isWorker = !!c.env && Object.keys(c.env).length > 0
+  const environment = isWorker ? 'Cloudflare Workers' : 'Node.js'
+  return c.text(`API is running on ${environment}!`)
+})

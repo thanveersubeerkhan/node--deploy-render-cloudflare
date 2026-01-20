@@ -63,9 +63,40 @@ npm start
 pm2 start dist/index.js --name "workflow-api"
 ```
 
----
+## 🔗 GitHub Integration (CI/CD)
 
-## 🛠️ Database Migrations
+To have your Workers build and deploy automatically whenever you push code, follow these steps.
+
+### Method A: Cloudflare Dashboard (Native)
+1. Go to **Workers & Pages** in your Cloudflare dashboard.
+2. Select `nodejs-worker`.
+3. Go to **Settings** > **Git Integration**.
+4. Click **Connect to GitHub** and select your repository.
+5. In the **Build Settings**:
+   - **Build command**: `npm run build`
+   - **Build output directory**: `dist` (Note: for Workers, you often just need the script, but wrangler handles it).
+6. **IMPORTANT**: You must add your `DATABASE_URL` to **Settings** > **Variables** > **Production** in the dashboard, or the automated build will fail.
+
+### Method B: GitHub Actions (Recommended)
+Create a file at `.github/workflows/deploy.yml`:
+```yaml
+name: Deploy
+on: [push]
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+      - run: npm install
+      - name: Deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+```
+Generate an API Token at **My Profile** > **API Tokens** > **Edit Cloudflare Workers** template.
 
 The application uses an "auto-init" strategy for simplicity. On the first request to `/items` or `/files/upload`, the application will automatically create the necessary tables (`items` and `files`) if they do not exist.
 

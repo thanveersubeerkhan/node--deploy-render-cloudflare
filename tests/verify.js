@@ -1,8 +1,8 @@
 import fetch from 'node-fetch';
 import FormData from 'form-data';
 
-const NODE_URL = 'http://localhost:4000';
-const WORKER_URL = 'http://localhost:8787';
+const NODE_URL = 'https://node-deploy-render-cloudflare.onrender.com';
+const WORKER_URL = 'https://nodejs-worker.thanveer-apps.workers.dev';
 
 async function testServer(baseUrl, label) {
     console.log(`\n--- Testing ${label} at ${baseUrl} ---`);
