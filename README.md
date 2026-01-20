@@ -1,92 +1,112 @@
-# Project Codebase Guide
+# Node.js & Cloudflare Workers: Unified Workflow API
 
-This project is a hybrid Node.js + Cloudflare Workers application. Here is a detailed explanation of every file in the project.
+A high-performance, TypeScript-based API designed for seamless execution on both **Node.js** and **Cloudflare Workers**. It provides a unified interface for item management and file storage, with intelligent storage strategies that adapt to the runtime environment.
 
-## 📂 Source Code
+## 🏗️ Architecture
 
-### `app.js`
-**The Core Application Logic**
-This is the main file that defines the web API.
-*   **Framework:** uses `hono` to create routing (GET, POST, PUT, DELETE).
-*   **Database Logic:**
-    *   Connects to PostgreSQL using `postgres.js`.
-    *   Automatically creates tables (`items`, `files`) if they don't exist.
-*   **Hybrid Storage Logic:**
-    *   Checks if it's running on Cloudflare (`c.env.BUCKET` exists).
-    *   **If Cloudflare:** Saves uploaded files to R2 Storage.
-    *   **If Node.js:** Saves uploaded files directly to the PostgreSQL database as a fallback.
+The project uses a shared core application logic (`src/app.ts`) with environment-specific entry points.
 
-### `worker.js`
-**Cloudflare Entry Point**
-This file is used *only* when deploying to Cloudflare Workers.
-*   It imports `app` from `app.js`.
-*   It exports the app in the default format that Cloudflare's runtime expects (`export default { fetch: ... }`).
+```mermaid
+graph TD
+    subgraph "Clients"
+        Web["Web/Mobile App"]
+        CURL["cURL / Postman"]
+    end
 
-### `server.js`
-**Node.js Entry Point**
-This file is used *only* when extracting the app to a standard server (like Render, AWS EC2, or local Node.js).
-*   It imports `app` from `app.js`.
-*   It uses `@hono/node-server` to create a standalone HTTP server.
-*   It listens on port 3000 (or `process.env.PORT`).
+    subgraph "Application"
+        API["Hono API (src/app.ts)"]
+        ItemCtrl["Item Controller"]
+        FileCtrl["File Controller"]
+    end
 
----
+    subgraph "Runtimes"
+        Node["Node.js (src/index.ts)"]
+        CFW["Cloudflare Worker (src/worker.ts)"]
+    end
 
-## ⚙️ Configuration
+    subgraph "Storage"
+        DB[("PostgreSQL")]
+        R2[("Cloudflare R2")]
+    end
 
-### `wrangler.toml`
-**Cloudflare Configuration**
-Configures how the app runs on Cloudflare Global Network.
-*   **name:** Sets the worker name (`nodejs-worker`).
-*   **limitations:** Enables Node.js compatibility flags (`nodejs_compat`).
-*   **r2_buckets:** Connects the worker to the R2 storage bucket (`nodejs-bucket`).
-*   **vars:** Defines where environment variables come from.
+    Web --> CFW
+    CURL --> Node
+    
+    Node --> API
+    CFW --> API
+    
+    API --> ItemCtrl
+    API --> FileCtrl
+    
+    ItemCtrl --> DB
+    FileCtrl -- "Node Strategy" --> DB
+    FileCtrl -- "Worker Strategy" --> R2
+```
 
-### `package.json`
-**Project Dependencies**
-Lists the libraries required to run the project.
-*   **Dependencies:**
-    *   `hono`: The web framework.
-    *   `postgres`: Database client.
-    *   `@hono/node-server`: Adapter to run Hono on Node.js.
-    *   `dotenv`: Loads `.env` files for local Node.js development.
-*   **Scripts:**
-    *   `npm run dev:worker`: Starts local Cloudflare development server.
-    *   `npm start`: Starts local standard Node.js server.
+## 🚀 Quick Start
 
----
+### 1. Prerequisites
+- **Node.js**: v18 or higher
+- **PostgreSQL**: A running instance (e.g., Neon.tech, Supabase, or Local)
+- **Wrangler**: `npm install -g wrangler` (for Cloudflare development)
 
-## 🔐 Environment & Secrets
+### 2. Setup
+```bash
+git clone <repository-url>
+cd nodejs-workflow-cloudflare-deployment
+npm install
+```
 
-### `.env`
-**Node.js Secrets**
-*   Stores sensitive data when running locally or on a standard server.
-*   **Key Variable:** `DATABASE_URL` (Connection string for Neon PostgreSQL).
-*   *Note: This file is ignored by Git to protect your secrets.*
+### 3. Environment
+Create a `.env` (Node) or `.dev.vars` (Worker) file:
+```env
+DATABASE_URL=postgres://user:password@host:port/dbname?sslmode=require
+```
 
-### `.dev.vars`
-**Cloudflare Local Secrets**
-*   Stores sensitive data when running `wrangler dev` (local Cloudflare simulation).
-*   **Key Variable:** `DATABASE_URL`.
-*   *Note: This file is ignored by Git.*
+### 4. Run
+| Runtime | Command | Port |
+| --- | --- | --- |
+| **Node.js** | `npm run dev` | `4000` |
+| **Worker** | `npm run dev:worker` | `8787` |
 
-### `.env.example` & `.dev.vars.example`
-**Template Files**
-*   These are safe, commit-friendly templates.
-*   They show other developers what variables they need to set without revealing your actual passwords.
+## 📖 API Documentation
 
----
+### Item Management
+| Route | Method | Description |
+| --- | --- | --- |
+| `/items` | `GET` | Fetch all items |
+| `/items` | `POST` | Create a new item |
+| `/items/:id` | `GET` | Get item details |
+| `/items/:id` | `PUT` | Update an item |
+| `/items/:id` | `DELETE` | Remove an item |
 
-## 📚 Documentation
+**Example POST Body:**
+```json
+{
+  "name": "My Workspace Task",
+  "value": "Important data to store"
+}
+```
 
-### `DEPLOYMENT.md`
-**Step-by-Step Guide**
-A manual I created to help you deploy the app.
-*   Contains commands to login to Cloudflare (`wrangler login`).
-*   Instructions to create buckets and set secrets.
-*   Guide for deploying to Render.
+### File Management
+| Route | Method | Description |
+| --- | --- | --- |
+| `/files/upload` | `POST` | Upload file (`multipart/form-data`) |
+| `/files/:id` | `GET` | Download / Stream file |
 
-### `.gitignore`
-**Git Exclusion List**
-Tells Git which files *not* to upload to GitHub.
-*   Excludes `node_modules` (heavy library files).
-*   Excludes `.env`, `.dev.vars`, and `.wrangler` (secrets and temporary cache).
+*Note: Files are stored in PostgreSQL as `BYTEA` on Node.js and in Cloudflare R2 on Workers.*
+
+## 🧪 Testing
+
+The project includes a built-in verification suite. Ensure both servers are running, then execute:
+
+```bash
+npm test
+```
+
+## 🚢 Deployment
+
+Detailed instructions for production deployment are available in the **[Deployment Guide](docs/DEPLOYMENT.md)**.
+
+- **Cloudflare Workers**: `npm run deploy`
+- **Node.js**: `npm run build` && `npm start`

@@ -1,16 +1,32 @@
 {
+    "name": "nodejs-workflow-cloudflare-deployment",
+    "version": "1.0.0",
+    "description": "A Node.js and Cloudflare Workers project for workflow management and file storage.",
     "type": "module",
     "scripts": {
-        "start": "node server.js",
-        "dev:worker": "wrangler dev worker.js"
+        "start": "tsx src/index.ts",
+        "dev": "tsx watch src/index.ts",
+        "dev:worker": "wrangler dev src/worker.ts",
+        "build": "tsc",
+        "clean": "rimraf dist",
+        "deploy": "wrangler deploy src/worker.ts",
+        "test": "node tests/verify.js"
     },
     "dependencies": {
-        "@hono/node-server": "^1.19.9",
         "dotenv": "^17.2.3",
         "hono": "^4.11.4",
         "postgres": "^3.4.8"
     },
     "devDependencies": {
+        "@cloudflare/workers-types": "^4.20260118.0",
+        "@hono/node-server": "^1.19.9",
+        "@types/node": "^25.0.9",
+        "form-data": "^4.0.5",
+        "node-fetch": "^3.3.2",
+        "rimraf": "^6.1.2",
+        "ts-node": "^10.9.2",
+        "tsx": "^4.21.0",
+        "typescript": "^5.9.3",
         "wrangler": "^4.59.2"
     }
 }
