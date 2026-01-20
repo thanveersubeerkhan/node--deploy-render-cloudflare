@@ -10,3 +10,7 @@ compatibility_flags = ["nodejs_compat"]
 binding = "BUCKET"
 bucket_name = "nodejs-bucket"
 preview_bucket_name = "nodejs-bucket"
+[observability]
+[observability.logs]
+enabled = false
+invocation_logs = true
