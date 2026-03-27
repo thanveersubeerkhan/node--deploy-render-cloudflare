@@ -1,92 +1,97 @@
-# Project Codebase Guide
+# 🚀 Hybrid Hono: Node.js + Cloudflare Workers
 
-This project is a hybrid Node.js + Cloudflare Workers application. Here is a detailed explanation of every file in the project.
+[![Node.js](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)](https://nodejs.org/)
+[![Cloudflare Workers](https://img.shields.io/badge/Cloudflare_Workers-F38020?style=for-the-badge&logo=cloudflareworkers&logoColor=white)](https://workers.cloudflare.com/)
+[![Hono](https://img.shields.io/badge/Hono-E36002?style=for-the-badge&logo=hono&logoColor=white)](https://hono.dev/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 
-## 📂 Source Code
-
-### `app.js`
-**The Core Application Logic**
-This is the main file that defines the web API.
-*   **Framework:** uses `hono` to create routing (GET, POST, PUT, DELETE).
-*   **Database Logic:**
-    *   Connects to PostgreSQL using `postgres.js`.
-    *   Automatically creates tables (`items`, `files`) if they don't exist.
-*   **Hybrid Storage Logic:**
-    *   Checks if it's running on Cloudflare (`c.env.BUCKET` exists).
-    *   **If Cloudflare:** Saves uploaded files to R2 Storage.
-    *   **If Node.js:** Saves uploaded files directly to the PostgreSQL database as a fallback.
-
-### `worker.js`
-**Cloudflare Entry Point**
-This file is used *only* when deploying to Cloudflare Workers.
-*   It imports `app` from `app.js`.
-*   It exports the app in the default format that Cloudflare's runtime expects (`export default { fetch: ... }`).
-
-### `server.js`
-**Node.js Entry Point**
-This file is used *only* when extracting the app to a standard server (like Render, AWS EC2, or local Node.js).
-*   It imports `app` from `app.js`.
-*   It uses `@hono/node-server` to create a standalone HTTP server.
-*   It listens on port 3000 (or `process.env.PORT`).
+A powerful, high-performance web API built with **Hono**. This project features a **hybrid architecture** that can run seamlessly as a Cloudflare Worker (with R2 storage) or a standard Node.js server (with PostgreSQL storage).
 
 ---
 
-## ⚙️ Configuration
+## ✨ Key Features
 
-### `wrangler.toml`
-**Cloudflare Configuration**
-Configures how the app runs on Cloudflare Global Network.
-*   **name:** Sets the worker name (`nodejs-worker`).
-*   **limitations:** Enables Node.js compatibility flags (`nodejs_compat`).
-*   **r2_buckets:** Connects the worker to the R2 storage bucket (`nodejs-bucket`).
-*   **vars:** Defines where environment variables come from.
-
-### `package.json`
-**Project Dependencies**
-Lists the libraries required to run the project.
-*   **Dependencies:**
-    *   `hono`: The web framework.
-    *   `postgres`: Database client.
-    *   `@hono/node-server`: Adapter to run Hono on Node.js.
-    *   `dotenv`: Loads `.env` files for local Node.js development.
-*   **Scripts:**
-    *   `npm run dev:worker`: Starts local Cloudflare development server.
-    *   `npm start`: Starts local standard Node.js server.
+- **🚀 Dual-Runtime Support**: Run on Cloudflare Workers or any Node.js environment (Render, VPS, etc.).
+- **📂 Smart Storage Strategy**: 
+  - **Cloudflare R2**: High-performance object storage when running on Cloudflare.
+  - **PostgreSQL (Bytea)**: Seamless fallback to database-backed storage when running in Node.js.
+- **🛠️ Automated DB Management**: Auto-initializes PostgreSQL tables (`items` and `files`) on the fly.
+- **⚡ Ultra-fast Routing**: Built on [Hono](https://hono.dev/), the smallest and fastest web framework for modern runtimes.
 
 ---
 
-## 🔐 Environment & Secrets
+## 📂 Project Architecture
 
-### `.env`
-**Node.js Secrets**
-*   Stores sensitive data when running locally or on a standard server.
-*   **Key Variable:** `DATABASE_URL` (Connection string for Neon PostgreSQL).
-*   *Note: This file is ignored by Git to protect your secrets.*
+### 核心 Logic (`app.js`)
+The beating heart of the application. It contains the CRUD logic and the intelligent file upload strategy.
 
-### `.dev.vars`
-**Cloudflare Local Secrets**
-*   Stores sensitive data when running `wrangler dev` (local Cloudflare simulation).
-*   **Key Variable:** `DATABASE_URL`.
-*   *Note: This file is ignored by Git.*
+### Entry Points
+- `worker.js`: Optimized for **Cloudflare Workers**.
+- `server.js`: Optimized for **Node.js** (using `@hono/node-server`).
 
-### `.env.example` & `.dev.vars.example`
-**Template Files**
-*   These are safe, commit-friendly templates.
-*   They show other developers what variables they need to set without revealing your actual passwords.
+### Configuration
+- `wrangler.toml`: Cloudflare deployment settings.
+- `package.json`: Dependency management and scripts.
 
 ---
 
-## 📚 Documentation
+## 🛠️ Getting Started
 
-### `DEPLOYMENT.md`
-**Step-by-Step Guide**
-A manual I created to help you deploy the app.
-*   Contains commands to login to Cloudflare (`wrangler login`).
-*   Instructions to create buckets and set secrets.
-*   Guide for deploying to Render.
+### Prerequisites
+- [Node.js](https://nodejs.org/) (v18+)
+- A PostgreSQL database (e.g., [Neon.tech](https://neon.tech/))
+- (Optional) [Cloudflare Account](https://dash.cloudflare.com/) for R2 storage.
 
-### `.gitignore`
-**Git Exclusion List**
-Tells Git which files *not* to upload to GitHub.
-*   Excludes `node_modules` (heavy library files).
-*   Excludes `.env`, `.dev.vars`, and `.wrangler` (secrets and temporary cache).
+### Installation
+```bash
+# Install dependencies
+npm install
+
+# Setup environment variables
+cp .env.example .env
+# Edit .env with your DATABASE_URL
+```
+
+### Local Development
+
+#### Standard Node.js
+```bash
+npm start
+```
+
+#### Cloudflare Workers (Simulation)
+```bash
+npm run dev:worker
+```
+
+---
+
+## 📡 API Documentation
+
+### Items CRUD
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `GET` | `/items` | List all items. |
+| `GET` | `/items/:id` | Get a specific item. |
+| `POST` | `/items` | Create a new item (JSON). |
+| `PUT` | `/items/:id` | Update an item. |
+| `DELETE` | `/items/:id` | Delete an item. |
+
+### File Management
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `POST` | `/upload` | Upload a file (Multipart Form Data). Returns `fileId`. |
+| `GET` | `/files/:id` | Download/View a file by ID. |
+
+---
+
+## 🚀 Deployment
+
+- **Cloudflare Workers**: Run `wrangler deploy`. See [DEPLOYMENT.md](file:///d:/desktop%20folders/pr-automate-report-generate-agent/DEPLOYMENT.md) for details.
+- **Render**: Connect your GitHub repo and set the build/start commands. See [DEPLOYMENT.md](file:///d:/desktop%20folders/pr-automate-report-generate-agent/DEPLOYMENT.md).
+
+---
+
+## 📜 License
+MIT
+
